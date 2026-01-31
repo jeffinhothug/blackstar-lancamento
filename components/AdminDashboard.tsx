@@ -587,7 +587,17 @@ const Dashboard: React.FC = () => {
 
 export const AdminRoot: React.FC = () => {
   const [isLogged, setIsLogged] = useState(false);
+  const [loading, setLoading] = useState(true);
 
+  useEffect(() => {
+    const unsubscribe = auth.onAuthStateChanged((user) => {
+      setIsLogged(!!user);
+      setLoading(false);
+    });
+    return () => unsubscribe();
+  }, []);
+
+  if (loading) return <div className="min-h-screen bg-background flex items-center justify-center text-gold">Carregando...</div>;
   if (!isLogged) return <AdminLogin onLogin={() => setIsLogged(true)} />;
   return <Dashboard />;
 };

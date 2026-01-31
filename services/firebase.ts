@@ -15,11 +15,11 @@ const firebaseConfig = {
 };
 
 // Fail gracefully if config is missing
-let app;
-let analytics;
-let auth;
-let db;
-let storage;
+let app: any;
+let analytics: any;
+let auth: any;
+let db: any;
+let storage: any;
 
 try {
     if (!firebaseConfig.apiKey) {
