@@ -12,7 +12,7 @@ export const releaseService = {
             const querySnapshot = await getDocs(q);
             const releases: Release[] = [];
             querySnapshot.forEach((doc) => {
-                releases.push(doc.data() as Release);
+                releases.push({ id: doc.id, ...doc.data() } as Release);
             });
             return releases;
         } catch (error) {
@@ -88,23 +88,27 @@ export const releaseService = {
         return newStatus;
     },
 
+    deleteStorageFiles: async (release: Release): Promise<void> => {
+        // Delete Cover
+        if (release.coverFileName && !release.coverFileName.startsWith('[DELETED')) {
+            const coverPath = `capas/${release.id}/${release.coverFileName}`;
+            const coverRef = ref(storage, coverPath);
+            await deleteObject(coverRef).catch(e => console.warn('Cover delete failed/not found', e));
+        }
+
+        // Delete Audio Files
+        await Promise.all(release.tracks.map(async (t) => {
+            if (t.audioFileName && !t.audioFileName.startsWith('[DELETED')) {
+                const audioPath = `audios/${release.id}/${t.id}/${t.audioFileName}`;
+                const audioRef = ref(storage, audioPath);
+                await deleteObject(audioRef).catch(e => console.warn(`Audio delete failed for ${t.title}`, e));
+            }
+        }));
+    },
+
     purgeReleaseMedia: async (release: Release): Promise<void> => {
         try {
-            // Delete Cover
-            if (release.coverFileName && !release.coverFileName.startsWith('[DELETED')) {
-                const coverPath = `capas/${release.id}/${release.coverFileName}`;
-                const coverRef = ref(storage, coverPath);
-                await deleteObject(coverRef).catch(e => console.warn('Cover delete failed/not found', e));
-            }
-
-            // Delete Audio Files
-            await Promise.all(release.tracks.map(async (t) => {
-                if (t.audioFileName && !t.audioFileName.startsWith('[DELETED')) {
-                    const audioPath = `audios/${release.id}/${t.id}/${t.audioFileName}`;
-                    const audioRef = ref(storage, audioPath);
-                    await deleteObject(audioRef).catch(e => console.warn(`Audio delete failed for ${t.title}`, e));
-                }
-            }));
+            await releaseService.deleteStorageFiles(release);
 
             const releaseRef = doc(db, RELEASES_COLLECTION, release.id);
             await updateDoc(releaseRef, {
@@ -120,13 +124,23 @@ export const releaseService = {
     },
 
     deletePermanently: async (release: Release): Promise<void> => {
+        console.log(`[FirebaseService] Iniciando exclusão permanente: ${release.id} (${release.title})`);
         try {
-            await releaseService.purgeReleaseMedia(release); // Clean files first
-            await deleteDoc(doc(db, RELEASES_COLLECTION, release.id));
+            // 1. Limpar o Storage primeiro enquanto ainda temos as referências no objeto
+            try {
+                await releaseService.deleteStorageFiles(release);
+                console.log(`[FirebaseService] Storage files cleaned for ${release.id}`);
+            } catch (storageError) {
+                console.warn("[FirebaseService] Storage cleanup had issues, proceeding with DB deletion:", storageError);
+            }
+
+            // 2. Apaga do Banco de Dados
+            const docRef = doc(db, RELEASES_COLLECTION, release.id);
+            await deleteDoc(docRef);
+            console.log(`[FirebaseService] Document ${release.id} deleted from Firestore.`);
         } catch (error) {
-            console.error("Error deleting release:", error);
-            // Force delete doc even if storage fails
-            await deleteDoc(doc(db, RELEASES_COLLECTION, release.id));
+            console.error("[FirebaseService] Critical error deleting release:", error);
+            throw error;
         }
     },
 
@@ -185,9 +199,6 @@ export const releaseService = {
     // --- Artist Management (Standalone) ---
     addArtist: async (name: string): Promise<void> => {
         try {
-            const artistsCollection = collection(db, 'artistas');
-            // Use name as ID to prevent duplicates easily, or just add doc with name field
-            // Using ID = items helps uniqueness
             const docRef = doc(db, 'artistas', name.trim());
             await setDoc(docRef, { name: name.trim(), createdAt: new Date().toISOString() });
         } catch (error) {
@@ -207,6 +218,32 @@ export const releaseService = {
             return artists;
         } catch (error) {
             console.error("Error getting stored artists:", error);
+            return [];
+        }
+    },
+
+    // --- Genre Management ---
+    addGenre: async (genre: string): Promise<void> => {
+        try {
+            const docRef = doc(db, 'generos', genre.trim());
+            await setDoc(docRef, { name: genre.trim(), createdAt: new Date().toISOString() });
+        } catch (error) {
+            console.error("Error adding genre:", error);
+            throw error;
+        }
+    },
+
+    getStoredGenres: async (): Promise<string[]> => {
+        try {
+            const q = query(collection(db, 'generos'));
+            const querySnapshot = await getDocs(q);
+            const genres: string[] = [];
+            querySnapshot.forEach((doc) => {
+                genres.push(doc.data().name as string);
+            });
+            return genres;
+        } catch (error) {
+            console.error("Error getting stored genres:", error);
             return [];
         }
     }

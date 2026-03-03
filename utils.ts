@@ -1,7 +1,8 @@
 // Smart Title Case Logic
+export const APP_VERSION = '2.1.0';
 export const smartTitleCase = (str: string): string => {
   if (!str) return '';
-  
+
   const smallWords = /^(a|an|and|as|at|but|by|en|for|if|in|nor|of|on|or|per|the|to|vs?\.?|via|o|a|os|as|um|uns|uma|umas|de|do|da|dos|das|em|na|no|nas|nos|por|para|e|ou)$/i;
   const alphanumericPattern = /([A-Za-z0-9\u00C0-\u00FF])/;
 

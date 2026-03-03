@@ -1,0 +1,30 @@
+name: Manter Firebase Ativo (Spark Tier)
+on:
+  schedule:
+    - cron: '0 0 * * *' # Meia-noite UTC
+  workflow_dispatch:
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Install Dependencies
+        run: npm install firebase-admin
+      - name: Ping Firestore
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+        run: |
+          node -e "
+          const admin = require('firebase-admin');
+          const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
+          admin.initializeApp({ credential: admin.credential.cert(serviceAccount) });
+          const db = admin.firestore();
+          db.collection('releases').limit(1).get()
+            .then(() => console.log('Ping Firestore OK'))
+            .catch(err => { console.error(err); process.exit(1); });
+          "

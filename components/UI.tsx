@@ -1,32 +1,76 @@
 import React from 'react';
 
-export const Button: React.FC<React.ButtonHTMLAttributes<HTMLButtonElement> & { variant?: 'primary' | 'secondary' | 'danger' | 'ghost' }> = ({
-  children, className = '', variant = 'primary', ...props
-}) => {
-  const baseStyle = "px-6 py-3 rounded-lg font-medium transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed";
+export type ClassValue = string | boolean | null | undefined;
+export function cn(...inputs: ClassValue[]): string {
+  return inputs.filter(Boolean).join(' ');
+}
 
-  const variants = {
-    primary: "bg-gold hover:bg-gold-hover text-white shadow-lg shadow-gold/20",
-    secondary: "bg-surface border border-gray-700 hover:border-gold text-white hover:text-gold",
-    danger: "bg-red-900/50 text-red-200 hover:bg-red-900 border border-red-800",
-    ghost: "bg-transparent hover:bg-white/5 text-gray-400 hover:text-white"
-  };
+interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
+  variant?: 'primary' | 'secondary' | 'outline' | 'danger' | 'ghost';
+  size?: 'sm' | 'md' | 'lg';
+  isLoading?: boolean;
+}
 
-  return (
-    <button className={`${baseStyle} ${variants[variant]} ${className}`} {...props}>
-      {children}
-    </button>
-  );
-};
+export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
+  ({ className, variant = 'primary', size = 'md', isLoading, ...props }, ref) => {
+    const baseStyle = "px-6 py-3 rounded-lg font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2";
+    const sizeStyles = {
+      sm: 'px-4 py-2 text-sm',
+      md: 'px-6 py-3 text-base',
+      lg: 'px-8 py-4 text-lg',
+    };
+    const variants = {
+      primary: 'bg-gold text-black hover:bg-gold/90 shadow-[0_0_15px_rgba(212,175,55,0.3)] active:scale-95 transition-all duration-200',
+      secondary: 'bg-zinc-800 text-white hover:bg-zinc-700 border border-zinc-700 active:scale-95 transition-all duration-200',
+      outline: 'bg-transparent border-2 border-gold text-gold hover:bg-gold hover:text-black active:scale-95 transition-all duration-200',
+      ghost: 'bg-transparent text-white hover:bg-white/10 active:scale-95 transition-all duration-200',
+      danger: 'bg-red-600 text-white hover:bg-red-700 active:scale-95 transition-all duration-200',
+    };
 
-export const Input: React.FC<React.InputHTMLAttributes<HTMLInputElement> & { label: string }> = ({ label, className = '', ...props }) => (
-  <div className="flex flex-col gap-1 w-full">
-    <label className="text-sm text-gray-400 font-medium ml-1">{label}</label>
-    <input
-      className={`bg-input border border-gray-800 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-gold focus:ring-1 focus:ring-gold transition-colors placeholder-gray-600 ${className}`}
-      {...props}
-    />
-  </div>
+    return (
+      <button
+        ref={ref}
+        className={cn(baseStyle, variants[variant], sizeStyles[size], className)}
+        disabled={isLoading || props.disabled}
+        {...props}
+      >
+        {isLoading && (
+          <svg className="animate-spin h-5 w-5 text-current" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+          </svg>
+        )}
+        {props.children}
+      </button>
+    );
+  }
+);
+
+interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
+  label?: string;
+  error?: string;
+}
+
+export const Input = React.forwardRef<HTMLInputElement, InputProps>(
+  ({ label, error, className, ...props }, ref) => {
+    return (
+      <div className="space-y-1.5 w-full">
+        {label && <label className="text-sm font-medium text-zinc-400 ml-1 tracking-wider">{label}</label>}
+        <input
+          ref={ref}
+          className={cn(
+            'w-full bg-zinc-900/50 backdrop-blur-sm border border-zinc-800 rounded-lg px-4 py-2.5 text-white',
+            'focus:outline-none focus:ring-2 focus:ring-gold/50 focus:border-gold transition-all duration-300',
+            'placeholder:text-zinc-600',
+            error && 'border-red-500 focus:ring-red-500/50',
+            className
+          )}
+          {...props}
+        />
+        {error && <p className="text-xs text-red-500 mt-1 ml-1">{error}</p>}
+      </div>
+    );
+  }
 );
 
 export const Select: React.FC<React.SelectHTMLAttributes<HTMLSelectElement> & { label: string, options: { value: string, label: string }[] }> = ({ label, options, className = '', ...props }) => (
@@ -81,8 +125,15 @@ export const FileUpload: React.FC<{
   );
 };
 
-export const Card: React.FC<{ children: React.ReactNode, className?: string }> = ({ children, className = '' }) => (
-  <div className={`bg-surface rounded-xl border border-gray-800 p-6 ${className}`}>
+export const Card: React.FC<{ children: React.ReactNode, onClick?: () => void, className?: string }> = ({ children, onClick, className = '' }) => (
+  <div
+    onClick={onClick}
+    className={cn(
+      "bg-zinc-900/40 backdrop-blur-xl border border-zinc-800/50 rounded-[2rem] p-8 transition-all duration-500",
+      onClick && "cursor-pointer hover:bg-zinc-800/60 hover:border-gold/30 hover:-translate-y-1 shadow-2xl",
+      className
+    )}
+  >
     {children}
   </div>
 );
@@ -90,17 +141,20 @@ export const Card: React.FC<{ children: React.ReactNode, className?: string }> =
 export const Badge: React.FC<{ status: string }> = ({ status }) => {
   const getColors = (s: string) => {
     switch (s) {
-      case 'Finalizado': return 'bg-gold text-white';
-      case 'Distribuído': return 'bg-green-900 text-green-100 border border-green-700';
-      case 'Aprovado': return 'bg-blue-900 text-blue-100 border border-blue-700';
-      case 'Em Análise': return 'bg-yellow-900 text-yellow-100 border border-yellow-700';
-      case 'Rejeitado': return 'bg-red-900 text-red-100 border border-red-700';
-      default: return 'bg-gray-800 text-gray-400';
+      case 'Finalizado': return 'bg-gold/10 text-gold border-gold/20 shadow-[0_0_15px_rgba(212,175,55,0.1)]';
+      case 'Distribuído': return 'bg-green-500/10 text-green-400 border-green-500/20';
+      case 'Aprovado': return 'bg-blue-500/10 text-blue-400 border-blue-500/20';
+      case 'Em Análise': return 'bg-yellow-500/10 text-yellow-400 border-yellow-500/20';
+      case 'Rejeitado': return 'bg-red-500/10 text-red-400 border-red-500/20';
+      default: return 'bg-zinc-900 text-zinc-500 border-zinc-800';
     }
   };
 
   return (
-    <span className={`px-2 py-1 rounded text-xs font-bold uppercase tracking-wider ${getColors(status)}`}>
+    <span className={cn(
+      "px-3 py-1 rounded-full text-[9px] font-semibold uppercase tracking-[0.2em] border transition-all duration-300",
+      getColors(status)
+    )}>
       {status}
     </span>
   );

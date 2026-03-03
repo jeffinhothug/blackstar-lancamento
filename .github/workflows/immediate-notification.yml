@@ -1,0 +1,26 @@
+name: Varredura de Novos Lançamentos
+on:
+  schedule:
+    - cron: '0 */3 * * *' # Executa a cada 3 horas
+  workflow_dispatch: # Permite execução manual
+
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Install Dependencies
+        run: npm install firebase-admin nodemailer
+      - name: Run Automation Script
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          SMTP_HOST: ${{ secrets.SMTP_HOST }}
+          SMTP_USER: ${{ secrets.SMTP_USER }}
+          SMTP_PASS: ${{ secrets.SMTP_PASS }}
+          NOTIFY_EMAIL: "djjeffinhothug@gmail.com"
+          # Aqui poderíamos passar o ID do lançamento via payload, mas por enquanto o script varre o dia
+        run: node scripts/automation.js
