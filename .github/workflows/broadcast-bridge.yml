@@ -18,12 +18,9 @@ jobs:
           node-version: '20'
 
       - name: Install dependencies
-        run: |
-          cd blackstar-lancamento
-          npm install firebase-admin uuid
+        run: npm install firebase-admin uuid
 
       - name: Run Broadcast Bridge
         env:
           GOOGLE_APPLICATION_CREDENTIALS: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
-        run: |
-          node blackstar-lancamento/scripts/broadcast-bridge.js
+        run: node scripts/broadcast-bridge.js
