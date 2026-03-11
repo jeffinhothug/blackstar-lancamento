@@ -1,5 +1,6 @@
-const admin = require('firebase-admin');
-const { v4: uuidv4 } = require('uuid');
+import admin from 'firebase-admin';
+import { v4 as uuidv4 } from 'uuid';
+import { Buffer } from 'buffer'; // Opcional mas boa prática
 
 // Inicialização do Firebase Admin
 if (!admin.apps.length) {
