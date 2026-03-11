@@ -1,12 +1,20 @@
 import React, { useState, useEffect } from 'react';
 import NotificationMonitor from './NotificationMonitor';
-import { Release, ReleaseStatus, ReleaseChecklist, GENRE_OPTIONS } from '../types';
+import {
+  Release,
+  ReleaseStatus,
+  ReleaseType,
+  ReleaseChecklist,
+  NotificationPreferences,
+  GENRE_OPTIONS
+} from '../types';
 import { releaseService } from '../services/firebaseService';
 import { Button, Card, Badge, Input, cn } from './UI';
 import { Logo } from './Logo';
 import { formatDate, getStatusColor, smartTitleCase, APP_VERSION } from '../utils';
-import { auth } from '../services/firebase';
+import { auth, db } from '../services/firebase';
 import { signInWithEmailAndPassword } from 'firebase/auth';
+import { messagingService } from '../services/messagingService';
 
 import SubmissionForm from './SubmissionForm';
 
@@ -61,7 +69,7 @@ import { useNavigate } from 'react-router-dom';
 const Dashboard: React.FC = () => {
   const navigate = useNavigate();
   const [releases, setReleases] = useState<Release[]>([]);
-  const [tab, setTab] = useState<'DASHBOARD' | 'RELEASES' | 'HISTORY' | 'ARTISTS' | 'GENRES' | 'NEW_RELEASE' | 'SETTINGS'>('DASHBOARD');
+  const [tab, setTab] = useState<'DASHBOARD' | 'RELEASES' | 'HISTORY' | 'ARTISTS' | 'GENRES' | 'NEW_RELEASE' | 'SETTINGS' | 'NOTIFICATIONS'>('DASHBOARD');
 
   const [selectedRelease, setSelectedRelease] = useState<Release | null>(null);
   const [selectedArtist, setSelectedArtist] = useState<string | null>(null);
@@ -112,9 +120,19 @@ const Dashboard: React.FC = () => {
 
   const handleStatusUpdate = async (checklist: ReleaseChecklist) => {
     if (!selectedRelease) return;
-    await releaseService.updateStatus(selectedRelease.id, checklist);
+    const oldStatus = selectedRelease.status;
+    const newStatus = await releaseService.updateStatus(selectedRelease.id, checklist);
+
+    // Gatilho: Notificar todos se o status mudou para APROVADO
+    if (newStatus === ReleaseStatus.APROVADO && oldStatus !== ReleaseStatus.APROVADO) {
+      await messagingService.broadcastNotification(
+        "Lançamento Aprovado! 🥂",
+        `O projeto "${selectedRelease.title}" de ${selectedRelease.mainArtist.join(' & ')} foi aprovado.`
+      );
+    }
+
     await fetchReleases();
-    setSelectedRelease(prev => prev ? { ...prev, checklist } : null);
+    setSelectedRelease(prev => prev ? { ...prev, checklist, status: newStatus } : null);
   };
 
   const handleDelete = async () => {
@@ -350,6 +368,16 @@ const Dashboard: React.FC = () => {
               </div>
             </div>
 
+            <div className="p-6 bg-zinc-950/60 rounded-2xl border border-zinc-900 group cursor-pointer hover:border-gold/30 transition-all" onClick={() => setTab('NOTIFICATIONS')}>
+              <div className="flex items-center justify-between">
+                <div>
+                  <h4 className="text-sm font-black uppercase tracking-tight text-white mb-1">Central de Notificações</h4>
+                  <p className="text-xs text-zinc-500">Configurar Push, E-mail e Alertas</p>
+                </div>
+                <div className="text-gold text-lg">→</div>
+              </div>
+            </div>
+
             <div className="p-6 bg-zinc-950/60 rounded-2xl border border-zinc-900">
               <div className="flex items-center justify-between">
                 <div>
@@ -365,9 +393,130 @@ const Dashboard: React.FC = () => {
     );
   };
 
+  const NotificationsTab: React.FC = () => {
+    const [token, setToken] = useState<string | null>(null);
+    const [isRequesting, setIsRequesting] = useState(false);
+    const [prefs, setPrefs] = useState<NotificationPreferences>({
+      newReleases: true,
+      eventReminders: true,
+      adminAlerts: true,
+      updatedAt: new Date().toISOString()
+    });
+    const [isSaving, setIsSaving] = useState(false);
+
+    useEffect(() => {
+      const loadPrefs = async () => {
+        if (auth.currentUser) {
+          const savedPrefs = await messagingService.getPreferences(auth.currentUser.uid);
+          if (savedPrefs) setPrefs(savedPrefs);
+        }
+      };
+      loadPrefs();
+    }, []);
+
+    const handleRequest = async () => {
+      setIsRequesting(true);
+      const t = await messagingService.requestPermission();
+      setToken(t);
+      setIsRequesting(false);
+      if (t) alert('Notificações ativadas com sucesso!');
+    };
+
+    const handlePrefChange = async (key: keyof NotificationPreferences, value: boolean) => {
+      if (!auth.currentUser) return;
+      const newPrefs = { ...prefs, [key]: value };
+      setPrefs(newPrefs);
+      setIsSaving(true);
+      await messagingService.savePreferences(auth.currentUser.uid, newPrefs);
+      setIsSaving(false);
+    };
+
+    const sendTestPush = async () => {
+      setIsSaving(true);
+      const success = await messagingService.broadcastNotification(
+        "Teste Global BlackStar 🚀",
+        "Se você recebeu isso em todos os seus aparelhos, o sistema push está 100%!"
+      );
+      setIsSaving(false);
+
+      if (success) {
+        alert("Comando de Broadcast enviado! Aguarde alguns segundos para receber em todos os dispositivos logados.");
+      } else {
+        alert("Erro ao enviar comando de teste.");
+      }
+    };
+
+    return (
+      <div className="space-y-10 max-w-4xl">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+          <Card className="p-8 border-gold/10 bg-zinc-900/20">
+            <h3 className="text-zinc-500 text-[10px] font-black uppercase tracking-[0.3em] mb-6">Status do Dispositivo</h3>
+            <div className="space-y-6">
+              <div className="flex items-center justify-between p-4 bg-black/40 rounded-2xl border border-zinc-800">
+                <span className="text-xs font-bold text-zinc-400 uppercase tracking-widest">Push no Navegador</span>
+                <span className={cn(
+                  "px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest",
+                  Notification.permission === 'granted' ? "bg-green-500/10 text-green-500" : "bg-red-500/10 text-red-500"
+                )}>
+                  {Notification.permission === 'granted' ? 'Ativo' : 'Inativo'}
+                </span>
+              </div>
+
+              <Button
+                onClick={handleRequest}
+                disabled={isRequesting || Notification.permission === 'granted'}
+                className="w-full"
+              >
+                {isRequesting ? 'Configurando...' : Notification.permission === 'granted' ? 'Notificações Já Ativadas' : 'Ativar Push neste Celular'}
+              </Button>
+              <p className="text-[9px] text-zinc-600 text-center uppercase tracking-widest leading-relaxed">
+                Ao ativar, você receberá alertas de novos lançamentos e eventos diretamente na tela do seu dispositivo.
+              </p>
+            </div>
+          </Card>
+
+          <Card className="p-8 border-zinc-800/50">
+            <div className="flex justify-between items-center mb-6">
+              <h3 className="text-zinc-500 text-[10px] font-black uppercase tracking-[0.3em]">Configurações de Alerta</h3>
+              {isSaving && <span className="text-[8px] text-gold animate-pulse uppercase font-black">Salvando...</span>}
+            </div>
+            <div className="space-y-4">
+              {[
+                { key: 'newReleases', label: 'Novos Lançamentos', desc: 'Avisar quando houver novos cadastros' },
+                { key: 'eventReminders', label: 'Lembretes de Eventos', desc: 'Avisos de datas do calendário' },
+                { key: 'adminAlerts', label: 'Alertas de Admin', desc: 'Pendências de +3 dias no sistema' }
+              ].map((pref) => (
+                <label key={pref.key} className="flex items-center justify-between p-4 rounded-2xl hover:bg-zinc-900/40 transition-colors cursor-pointer group border border-transparent hover:border-zinc-800">
+                  <div className="flex flex-col">
+                    <span className="text-xs font-bold text-white uppercase tracking-tight group-hover:text-gold transition-colors">{pref.label}</span>
+                    <span className="text-[9px] text-zinc-500">{pref.desc}</span>
+                  </div>
+                  <input
+                    type="checkbox"
+                    checked={(prefs as any)[pref.key]}
+                    onChange={(e) => handlePrefChange(pref.key as any, e.target.checked)}
+                    className="w-5 h-5 accent-gold"
+                  />
+                </label>
+              ))}
+            </div>
+          </Card>
+        </div>
+
+        <Card className="p-8 border-red-950/20 bg-red-950/5">
+          <h3 className="text-red-500/50 text-[10px] font-black uppercase tracking-[0.3em] mb-4">Zona de Depuração</h3>
+          <p className="text-xs text-zinc-500 mb-6 italic">Use estas ferramentas apenas para testar a conectividade do sistema de push.</p>
+          <div className="flex gap-4">
+            <Button variant="secondary" size="sm" onClick={sendTestPush} className="text-[9px] font-black">Enviar Push de Teste</Button>
+          </div>
+        </Card>
+      </div>
+    );
+  };
+
+
   return (
     <div className="min-h-screen bg-black text-gray-200 flex flex-col md:flex-row font-sans selection:bg-gold/30">
-      <NotificationMonitor />
 
       {/* Mobile Header */}
       <div className="md:hidden bg-zinc-950/80 backdrop-blur-xl border-b border-zinc-800/50 p-4 flex justify-between items-center sticky top-0 z-50">
@@ -419,6 +568,7 @@ const Dashboard: React.FC = () => {
             { id: 'HISTORY', label: 'Histórico' },
             { id: 'ARTISTS', label: 'Artistas' },
             { id: 'GENRES', label: 'Catálogo' },
+            { id: 'NOTIFICATIONS', label: 'Notificações' },
             { id: 'SETTINGS', label: 'Sistema' }
           ].map((item) => (
             <button
@@ -479,6 +629,7 @@ const Dashboard: React.FC = () => {
                 {tab === 'HISTORY' && 'Arquivo Geral'}
                 {tab === 'ARTISTS' && 'Banco de Talentos'}
                 {tab === 'GENRES' && 'Catálogo Musical'}
+                {tab === 'NOTIFICATIONS' && 'Central de Notificações'}
                 {tab === 'SETTINGS' && 'Preferências'}
               </h1>
             </header>
@@ -487,6 +638,7 @@ const Dashboard: React.FC = () => {
             {tab === 'RELEASES' && renderReleasesTab()}
             {tab === 'HISTORY' && renderHistoryTab()}
             {tab === 'GENRES' && renderGenresTab()}
+            {tab === 'NOTIFICATIONS' && <NotificationsTab />}
             {tab === 'SETTINGS' && renderSettingsTab()}
             {tab === 'ARTISTS' && (
               <Card>
@@ -682,7 +834,7 @@ const Dashboard: React.FC = () => {
                       <span className="text-[10px] font-semibold text-zinc-600 tracking-widest">Informação Geral</span>
                       <div className="flex flex-col">
                         <span className="text-zinc-500 text-[10px]">Gênero</span>
-                        <span className="text-white font-semibold">{selectedRelease.genre}{selectedRelease.subGenre ? ` - ${selectedRelease.subGenre}` : ''}</span>
+                        <span className="text-white font-semibold">{selectedRelease.genre}{selectedRelease.subGenre ? ` - ${selectedRelease.subGenre} ` : ''}</span>
                       </div>
                     </div>
                     <div className="flex flex-col gap-2">

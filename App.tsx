@@ -4,6 +4,7 @@ import SubmissionForm from './components/SubmissionForm';
 import { AdminRoot } from './components/AdminDashboard';
 import NotificationTester from './components/NotificationTester';
 import { ReloadPrompt } from './components/ReloadPrompt';
+import NotificationMonitor from './components/NotificationMonitor';
 
 const LegacyRedirect = () => {
   const navigate = useNavigate();
@@ -62,6 +63,7 @@ export default function Root() {
     <BrowserRouter>
       <LegacyRedirect />
       <ReloadPrompt />
+      <NotificationMonitor />
       <App />
     </BrowserRouter>
   );

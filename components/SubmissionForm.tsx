@@ -6,6 +6,7 @@ import { Button, Input, Select, FileUpload, Card } from './UI';
 import { TagInput } from './TagInput';
 import { Logo } from './Logo';
 import { releaseService } from '../services/firebaseService';
+import { messagingService } from '../services/messagingService';
 
 const SubmissionForm: React.FC = () => {
   const navigate = useNavigate();
@@ -268,6 +269,12 @@ const SubmissionForm: React.FC = () => {
       };
 
       await releaseService.create(newRelease);
+
+      // Gatilho: Notificar Admins sobre novo envio
+      await messagingService.broadcastNotification(
+        "Novo Lançamento Recebido!",
+        `${newRelease.mainArtist.join(' & ')} enviou "${newRelease.title}" para análise.`
+      );
 
       setStep('SUCCESS');
     } catch (err) {

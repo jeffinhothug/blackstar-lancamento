@@ -1,0 +1,22 @@
+name: Cleanup Storage
+on:
+  schedule:
+    - cron: '0 0 * * *' # Executa todo dia à meia-noite UTC
+  workflow_dispatch: # Permite execução manual
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Install Dependencies
+        run: npm install firebase-admin
+      - name: Run Purge Media Script
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          FIREBASE_STORAGE_BUCKET: "blackstar-lancamentos.firebasestorage.app"
+        run: node scripts/purge-media.js

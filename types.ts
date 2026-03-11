@@ -77,3 +77,10 @@ export const GENRE_OPTIONS: GenreOption[] = [
   { value: 'Eletrônica', label: 'Eletrônica' },
   { value: 'Outros', label: 'Outros' },
 ];
+
+export interface NotificationPreferences {
+  newReleases: boolean;
+  eventReminders: boolean;
+  adminAlerts: boolean;
+  updatedAt: string;
+}

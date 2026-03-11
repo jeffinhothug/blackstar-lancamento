@@ -1,4 +1,4 @@
-const admin = require('firebase-admin');
+import admin from 'firebase-admin';
 
 // Inicialização do Firebase Admin
 let serviceAccount;
@@ -9,9 +9,11 @@ try {
     process.exit(1);
 }
 
-admin.initializeApp({
-    credential: admin.credential.cert(serviceAccount)
-});
+if (!admin.apps.length) {
+    admin.initializeApp({
+        credential: admin.credential.cert(serviceAccount)
+    });
+}
 
 const db = admin.firestore();
 const storage = admin.storage().bucket(process.env.FIREBASE_STORAGE_BUCKET || 'blackstar-lancamentos.firebasestorage.app');
@@ -29,7 +31,7 @@ async function purgeOldMedia() {
     console.log(`Buscando lançamentos FINALIZADOS criados antes de ${thirtyDaysAgo.toISOString()}`);
 
     try {
-        const snapshot = await db.collection('releases')
+        const snapshot = await db.collection('lancamentos')
             .where('status', '==', 'FINALIZADO')
             .where('purged', '!=', true) // don't process already purged
             .get();
@@ -84,7 +86,7 @@ async function purgeOldMedia() {
                         audioHash: '[PURGED]'
                     }));
 
-                    await db.collection('releases').doc(doc.id).update({
+                    await db.collection('lancamentos').doc(doc.id).update({
                         purged: true,
                         coverFileName: '[DELETED_MEDIA]',
                         coverUrl: '',
