@@ -1,0 +1,29 @@
+name: Broadcast Bridge (Novos Lançamentos)
+
+on:
+  schedule:
+    - cron: '0 * * * *' # Executa a cada 1 hora
+  workflow_dispatch: # Permite execução manual
+
+jobs:
+  bridge:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        run: |
+          cd blackstar-lancamento
+          npm install firebase-admin uuid
+
+      - name: Run Broadcast Bridge
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+        run: |
+          node blackstar-lancamento/scripts/broadcast-bridge.js

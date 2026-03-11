@@ -256,6 +256,7 @@ const SubmissionForm: React.FC = () => {
           shareInEnviado: false
         },
         createdAt: new Date().toISOString(),
+        notified: true, // Evita duplicidade no cron/bridge
         tracks: tracks.map(t => ({
           ...t,
           title: releaseType === ReleaseType.SINGLE ? smartTitleCase(title) : t.title,

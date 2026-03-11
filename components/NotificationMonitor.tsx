@@ -28,7 +28,7 @@ const NotificationMonitor: React.FC = () => {
         // Monitorar alertas globais (Broadcast)
         const qBroadcast = query(
             collection(db, 'notifications'),
-            orderBy('createdAt', 'desc'),
+            orderBy('timestamp', 'desc'),
             limit(1)
         );
 
@@ -56,7 +56,7 @@ const NotificationMonitor: React.FC = () => {
             snapshot.docChanges().forEach((change) => {
                 if (change.type === 'added') {
                     const data = change.doc.data();
-                    notifyGeneric(data.title, data.body);
+                    notifyGeneric(data.title, data.message || data.body);
                 }
             });
         });

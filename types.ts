@@ -49,6 +49,7 @@ export interface Release {
   status: ReleaseStatus;
   checklist: ReleaseChecklist;
   createdAt: string;
+  notified?: boolean; // Controle de notificações broadcast
   tracks: Track[]; // For Single, length is 1
   adminNotes?: string;
   purged?: boolean; // If true, media files are deleted
