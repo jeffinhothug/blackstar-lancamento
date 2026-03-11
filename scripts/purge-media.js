@@ -16,7 +16,7 @@ if (!admin.apps.length) {
 }
 
 const db = admin.firestore();
-const storage = admin.storage().bucket(process.env.FIREBASE_STORAGE_BUCKET || 'blackstar-lancamentos.firebasestorage.app');
+const storage = admin.storage().bucket(process.env.FIREBASE_STORAGE_BUCKET || 'thug-flow-app.firebasestorage.app');
 
 /**
  * Script para expurgar (deletar) arquivos de áudio e imagem de Lançamentos

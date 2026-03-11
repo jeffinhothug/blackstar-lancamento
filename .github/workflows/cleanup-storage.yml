@@ -18,5 +18,5 @@ jobs:
       - name: Run Purge Media Script
         env:
           FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
-          FIREBASE_STORAGE_BUCKET: "blackstar-lancamentos.firebasestorage.app"
+          FIREBASE_STORAGE_BUCKET: "thug-flow-app.firebasestorage.app"
         run: node scripts/purge-media.js

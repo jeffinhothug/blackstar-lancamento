@@ -2,7 +2,7 @@ name: Broadcast Bridge (Novos Lançamentos)
 
 on:
   schedule:
-    - cron: '0 * * * *' # Executa a cada 1 hora
+    - cron: '*/30 * * * *' # Executa a cada 30 minutos
   workflow_dispatch: # Permite execução manual
 
 jobs:
@@ -22,5 +22,5 @@ jobs:
 
       - name: Run Broadcast Bridge
         env:
-          GOOGLE_APPLICATION_CREDENTIALS: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
         run: node scripts/broadcast-bridge.js

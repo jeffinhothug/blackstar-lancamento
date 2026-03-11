@@ -3,10 +3,18 @@ import { v4 as uuidv4 } from 'uuid';
 import { Buffer } from 'buffer'; // Opcional mas boa prática
 
 // Inicialização do Firebase Admin
+let serviceAccount;
+try {
+  serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
+} catch (e) {
+  console.error('Erro ao processar FIREBASE_SERVICE_ACCOUNT:', e.message);
+  process.exit(1);
+}
+
 if (!admin.apps.length) {
   try {
     admin.initializeApp({
-      credential: admin.credential.applicationDefault()
+      credential: admin.credential.cert(serviceAccount)
     });
   } catch (error) {
     console.error('Erro ao inicializar Firebase Admin:', error);
